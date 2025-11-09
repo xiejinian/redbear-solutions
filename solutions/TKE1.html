@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>基于腾讯云TKE的弹性SaaS平台迁移方案</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* 1. 全局与排版重置 */
+        body {
+            /* 优先使用 Inter, 失败则回退到标准中英文系统字体 */
+            font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+            margin: 0;
+            padding: 24px;
+            background-color: #f7f7f8;
+            color: #111111;
+            line-height: 1.7; /* 增加行高，提升可读性 */
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* 2. 内容容器 (白色卡片) */
+        .container {
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 30px 50px 50px 50px;
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03), 0 2px 6px rgba(0,0,0,0.05);
+        }
+
+        /* 3. 标题与层级 */
+        header {
+            border-bottom: 1px solid #ececf1;
+            padding-bottom: 20px;
+            margin-bottom: 35px;
+        }
+
+        h1 {
+            font-size: 2.25rem; /* 36px */
+            font-weight: 700;
+            color: #111;
+            margin: 0;
+        }
+
+        h2 {
+            font-size: 1.75rem; /* 28px */
+            font-weight: 600;
+            color: #1a1a1a;
+            border-bottom: 1px solid #ececf1;
+            padding-bottom: 12px;
+            margin-top: 50px;
+            margin-bottom: 25px;
+        }
+
+        h3 {
+            font-size: 1.25rem; /* 20px */
+            font-weight: 600;
+            color: #333;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+
+        p, li {
+            font-size: 1rem; /* 16px */
+            color: #333333;
+            margin-bottom: 12px;
+        }
+
+        ul, ol {
+            padding-left: 24px;
+        }
+        
+        li {
+            margin-bottom: 10px;
+        }
+
+        strong {
+            font-weight: 600;
+            color: #000;
+        }
+
+        code {
+            background-color: #f3f3f3;
+            padding: 0.2em 0.4em;
+            border-radius: 4px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+        }
+
+        /* 4. 图表容器 (卡片式) */
+        .diagram-container {
+            width: 100%;
+            padding: 20px;
+            background-color: #ffffff;
+            border: 1px solid #e5e5e5;
+            border-radius: 8px;
+            box-sizing: border-box;
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        /* 5. 表格样式 (现代风格) */
+        table {
+            width: 100%;
+            margin-top: 20px;
+            border-collapse: collapse;
+            border-spacing: 0;
+        }
+
+        th, td {
+            padding: 14px 10px;
+            text-align: left;
+            border-bottom: 1px solid #ececf1; /* 仅保留水平线 */
+        }
+
+        th {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: #555;
+            background-color: #fafafa;
+        }
+        
+        tr:last-child > td {
+            border-bottom: none; /* 移除最后一行数据的边框 */
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            font-size: 0.9em;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>基于腾讯云TKE的弹性SaaS平台迁移与重构方案</h1>
+        </header>
+
+        <section>
+            <h2>一、核心目标 (To-Be)</h2>
+            <p>将当前管理混乱、缺乏弹性的CVM Docker部署，全面升级为基于腾讯云TKE（TKE托管集群）的、具备<strong>极致弹性、高可用、可观测、SaaS化</strong>的产品平台。
+            </p>
+        </section>
+
+        <section>
+            <h2>二、目标架构 (To-Be) 可视化 (分图)</h2>
+            <p>按照您的建议，我们将复杂的架构图拆分为以下两个独立的、更清晰的图表：</p>
+
+            <h3>图一：CI/CD 研发流程 (GitOps)</h3>
+            <div class="diagram-container">
+                <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 900 320" style="max-width: 800px; font-family: 'Inter', 'Noto Sans SC', sans-serif; font-size: 13px;">
+                    <defs>
+                        <marker id="arrowhead" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                            <path d="M 0 0 L 10 5 L 0 10 z" stroke-width="1" fill="#555"></path>
+                        </marker>
+                    </defs>
+                    <style>
+                        .cluster { fill: #f9f9f9; stroke: #ddd; stroke-width: 2px; }
+                        .cluster-title { font-weight: 600; font-size: 14px; fill: #333; }
+                        .node-rect { fill: #fff; stroke: #ccc; stroke-width: 1.5px; rx: 5; ry: 5; }
+                        .node-text { fill: #111; text-anchor: middle; dominant-baseline: central; }
+                        .edge-path { fill: none; stroke: #555; stroke-width: 1.5px; }
+                        .edge-label { fill: #444; font-size: 12px; background-color: #fff; padding: 2px; }
+                    </style>
+                    
+                    <g id="node-Dev"><rect class="node-rect" x="20" y="120" width="100" height="50"></rect><text class="node-text" x="70" y="145">开发者</text></g>
+                    <g id="node-Yunxiao"><rect class="node-rect" x="170" y="120" width="160" height="50"></rect><text class="node-text" x="250" y="145">阿里云·云效 CI</text></g>
+                    <g id="node-TCR"><rect class="node-rect" x="380" y="40" width="180" height="50"></rect><text class="node-text" x="470" y="65">TCR 企业版镜像仓库</text></g>
+                    <g id="node-K8sRepo"><rect class="node-rect" x="380" y="200" width="180" height="50"></rect><text class="node-text" x="470" y="225">K8s-Config-Repo (Git)</text></g>
+                    
+                    <g id="cluster-TKE">
+                        <rect class="cluster" x="610" y="70" width="270" height="150" rx="5"></rect>
+                        <text class="cluster-title" x="745" y="95">TKE 托管集群</text>
+                    </g>
+                    <g id="node-ArgoCD"><rect class="node-rect" x="640" y="120" width="120" height="50"></rect><text class="node-text" x="700" y="145">ArgoCD / Kone</text></g>
+                    <g id="node-Pods"><rect class="node-rect" x="790" y="120" width="60" height="50" style="fill: #f0f0f0; stroke-dasharray: 4;"></rect><text class="node-text" x="820" y="145">Pods</text></g>
+
+                    <path class="edge-path" d="M 120 145 H 170" marker-end="url(#arrowhead)"></path><text class="edge-label" x="130" y="130">1. Git Push</text>
+                    <path class="edge-path" d="M 250 120 V 90 H 380" marker-end="url(#arrowhead)"></path><text class="edge-label" x="280" y="80">2. 推送镜像</text>
+                    <path class="edge-path" d="M 250 170 V 225 H 380" marker-end="url(#arrowhead)"></path><text class="edge-label" x="280" y="215">3. 更新YAML</text>
+                    
+                    <path class="edge-path" d="M 560 225 H 610 V 170 H 640" marker-end="url(#arrowhead)" style="stroke-dasharray: 5;"></path><text class="edge-label" x="550" y="195">4. 监测变更</text>
+                    <path class="edge-path" d="M 560 65 H 610 V 120 H 640" marker-end="url(#arrowhead)" style="stroke-dasharray: 5;"></path><text class="edge-label" x="550" y="75">5. 拉取镜像</text>
+                    <path class="edge-path" d="M 760 145 H 790" marker-end="url(#arrowhead)"></path><text class="edge-label" x="765" y="130">6. 部署</text>
+                </svg>
+            </div>
+            
+            <h3>图二：服务部署与网络架构</h3>
+            <div class="diagram-container">
+                <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 900 600" style="max-width: 800px; font-family: 'Inter', 'Noto Sans SC', sans-serif; font-size: 13px;">
+                    <defs>
+                        <marker id="arrowhead-v10" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                            <path d="M 0 0 L 10 5 L 0 10 z" stroke-width="1" fill="#555"></path>
+                        </marker>
+                    </defs>
+                    <style>
+                        .cluster { fill: #f9f9f9; stroke: #ddd; stroke-width: 2px; }
+                        .cluster-title { font-weight: 600; font-size: 14px; fill: #333; }
+                        .node-rect { fill: #fff; stroke: #ccc; stroke-width: 1.5px; rx: 5; ry: 5; }
+                        .node-text { fill: #111; text-anchor: middle; dominant-baseline: central; }
+                        .edge-path { fill: none; stroke: #555; stroke-width: 1.5px; }
+                        .edge-label { fill: #444; font-size: 12px; background-color: #f9f9f9; padding: 2px; }
+                    </style>
+
+                    <g id="node-User"><rect class="node-rect" x="200" y="20" width="140" height="40"></rect><text class="node-text" x="270" y="40">SaaS 客户/用户</text></g>
+                    <g id="node-SIP"><rect class="node-rect" x="560" y="20" width="140" height="40"></rect><text class="node-text" x="630" y="40">三方SIP通信线路</text></g>
+
+                    <g id="node-CLB"><rect class="node-rect" x="200" y="100" width="140" height="40"></rect><text class="node-text" x="270" y="120">公网 CLB</text></g>
+                    <g id="node-EIP"><rect class="node-rect" x="560" y="100" width="140" height="40"></rect><text class="node-text" x="630" y="120">EIP</text></g>
+
+                    <g id="cluster-VPC">
+                        <rect class="cluster" x="10" y="160" width="880" height="420" rx="10"></rect>
+                        <text class="cluster-title" x="450" y="185">腾讯云 VPC (VPC-CNI 网络)</text>
+                    </g>
+                    
+                    <g id="cluster-TKE">
+                        <rect class="cluster" x="30" y="200" width="500" height="360" rx="5"></rect>
+                        <text class="cluster-title" x="280" y="225">TKE 托管集群</text>
+                    </g>
+                    <g id="node-Service"><rect class="node-rect" x="190" y="250" width="180" height="40"></rect><text class="node-text" x="280" y="270">K8s Service</text></g>
+                    <g id="node-TKEApp"><rect class="node-rect" x="50" y="320" width="220" height="55"></rect><text class="node-text" x="160" y="340">Deploy: Dify / Java客服</text><text class="node-text" x="160" y="360" style="font-size: 12px;">(HPA 弹性伸缩)</text></g>
+                    <g id="node-TKEAI"><rect class="node-rect" x="300" y="320" width="210" height="55"></rect><text class="node-text" x="405" y="340">Deploy: AI推理服务</text><text class="node-text" x="405" y="360" style="font-size: 12px;">(GPU 节点 + HPA)</text></g>
+                    <g id="node-CA"><rect class="node-rect" x="50" y="480" width="150" height="40"></rect><text class="node-text" x="125" y="500">Cluster Autoscaler</text></g>
+                    <g id="node-TKENodes"><rect class="node-rect" x="230" y="480" width="100" height="40" style="fill: #f0f0f0; stroke-dasharray: 4;"></rect><text class="node-text" x="280" y="500">TKE 节点</text></g>
+                    <g id="node-Observability"><rect class="node-rect" x="360" y="480" width="150" height="40"></rect><text class="node-text" x="435" y="500">CLS / TMP (采集器)</text></g>
+
+                    <g id="cluster-Deps">
+                        <rect class="cluster" x="550" y="200" width="320" height="360" rx="5"></rect>
+                        <text class="cluster-title" x="710" y="225">外部依赖 (VPC 内)</text>
+                    </g>
+                    <g id="node-FS"><rect class="node-rect" x="600" y="250" width="220" height="55"></rect><text class="node-text" x="710" y="270">Freeswitch CVM</text><text class="node-text" x="710" y="290" style="font-size: 12px;">(网络配置简单、稳定)</text></g>
+                    <g id="node-DB"><rect class="node-rect" x="600" y="340" width="220" height="55"></rect><text class="node-text" x="710" y="360">TencentDB</text><text class="node-text" x="710" y="380" style="font-size: 12px;">(MySQL / Redis)</text></g>
+                    <g id="node-MQ"><rect class="node-rect" x="600" y="430" width="220" height="40"></rect><text class="node-text" x="710" y="450">腾讯云 MQ</text></g>
+                    
+                    <path class="edge-path" d="M 270 60 V 100" marker-end="url(#arrowhead-v10)"></path>
+                    <path class="edge-path" d="M 630 60 V 100" marker-end="url(#arrowhead-v10)"></path>
+                    <path class="edge-path" d="M 270 140 V 160 H 280 V 250" marker-end="url(#arrowhead-v10)"></path>
+                    <path class="edge-path" d="M 630 140 V 160 H 710 V 250" marker-end="url(#arrowhead-v10)"></path><text class="edge-label" x="640" y="200">公网RTP/SIP</text>
+                    
+                    <path class="edge-path" d="M 280 290 V 320" marker-end="url(#arrowhead-v10)"></path>
+                    <path class="edge-path" d="M 160 375 V 400 H 405 V 375" marker-end="url(#arrowhead-v10)"></path> <path class="edge-path" d="M 160 375 H 550 V 280 H 600" marker-end="url(#arrowhead-v10)"></path><text class="edge-label" x="420" y="290">内网ESL/SIP调用</text>
+                    <path class="edge-path" d="M 160 375 H 550 V 365 H 600" marker-end="url(#arrowhead-v10)"></path><text class="edge-label" x="480" y="340">VPC内网</text>
+                    <path class="edge-path" d="M 160 375 H 550 V 450 H 600" marker-end="url(#arrowhead-v10)"></path><text class="edge-label" x="480" y="420">VPC内网</text>
+                    
+                    <path class="edge-path" d="M 205 500 H 230" marker-end="url(#arrowhead-v10)"></path><text class="edge-label" x="180" y="470">节点伸缩</text>
+                    <path class="edge-path" d="M 330 500 H 360" marker-end="url(#arrowhead-v10)"></path><text class="edge-label" x="335" y="470">采集</text>
+                    
+                </svg>
+            </div>
+
+        </section>
+
+        <section>
+            <h2>三、核心产品选型与方案</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>组件</th>
+                        <th>现状 (As-Is)</th>
+                        <th>目标选型 (To-Be)</th>
+                        <th>关键方案</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>K8s集群</strong></td>
+                        <td>CVM + Docker</td>
+                        <td><strong>TKE 托管集群</strong></td>
+                        <td>Master托管，灵活性高，支持GPU节点，完美契合SaaS平台需求。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>网络模式</strong></td>
+                        <td>CVM 默认网络</td>
+                        <td><strong>VPC-CNI 模式</strong></td>
+                        <td>Pod与CVM同网络平面，访问SaaS数据库无NAT，性能最高。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>镜像仓库</strong></td>
+                        <td>阿里云·云效</td>
+                        <td><strong>TCR 企业版</strong></td>
+                        <td>云效CI流程中增加 <code>docker push</code> 步骤，直接推送到TCR。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>数据库</strong></td>
+                        <td>Docker自建 + SaaS</td>
+                        <td><strong>TencentDB (MySQL/Redis)</strong></td>
+                        <td>使用 <strong>DTS</strong> 服务实现平滑迁移，应用层统一连接SaaS数据库。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>AI算力</strong></td>
+                        <td>自有算力服务器</td>
+                        <td><strong>TKE GPU 节点</strong></td>
+                        <td>(长期演进) 将推理服务容器化，部署在TKE GPU节点池，实现统一调度和弹性。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>可观测性</strong></td>
+                        <td>缺乏</td>
+                        <td><strong>CLS + TMP</strong></td>
+                        <td>TKE一键开启CLS(日志)和TMP(Prometheus监控)，实现全方位可观测。</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section>
+            <h2>四、关键应用部署设计</h2>
+            
+            <h3>1. 无状态应用 (Dify / Java应用 / RPA)</h3>
+            <ul>
+                <li><strong>部署方式:</strong> <code>Deployment</code>。</li>
+                <li><strong>弹性设计:</strong> 采用 <strong>HPA</strong> (应用层弹性) + <strong>CA</strong> (节点层弹性) 的“两级弹性”架构。</li>
+                <li><strong>HPA策略:</strong> 基于CPU (如 75%) 和 内存 (如 80%) 自动扩缩Pod。</li>
+                <li><strong>CA策略:</strong> 启用TKE节点伸缩组，在Pod资源不足时自动弹出新CVM节点。</li>
+            </ul>
+
+            <h3>2. 关键通信 (Freeswitch)</h3>
+            <ul>
+                <li><strong>部署方式:</strong> <strong>强烈推荐：集群外CVM部署。</strong></li>
+                <li><strong>理由:</strong> Freeswitch对网络NAT和状态保持极其敏感（SIP信令, RTP媒体流）。K8s内的复杂网络和服务暴露(LoadBalancer)会引入巨大风险（如单通、呼叫失败）。</li>
+                <li><strong>方案:</strong>
+                    <ol>
+                        <li>Freeswitch部署在独立CVM，绑定固定 <strong>EIP</strong>。</li>
+                        <li>在FS配置中写死EIP地址，安全组精确开放SIP/RTP端口。</li>
+                        <li>TKE内的AI呼叫中心应用，通过 <strong>VPC内网IP</strong> 调用FS服务 (API/ESL)。</li>
+                    </ol>
+                </li>
+                <li><strong>结论:</strong> 这是解耦“弹性应用层”和“稳定通信层”的最佳实践。</li>
+            </ul>
+
+            <h3>3. AI推理服务</h3>
+            <ul>
+                <li><strong>部署方式:</strong> <code>Deployment</code>。</li>
+                <li><strong>调度策略:</strong> 使用 <code>nodeAffinity</code> (节点亲和性) 确保Pod调度到 <strong>GPU节点</strong>。</li>
+                <li><strong>资源定义:</strong> Pod Spec中请求 <code>nvidia.com/gpu: "1"</code> 资源。</li>
+                <li><strong>弹性:</strong> 同样配置HPA，实现AI推理能力的弹性伸缩。</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>五、SaaS化与CI/CD流程</h2>
+            
+            <h3>1. SaaS化 (多租户隔离)</h3>
+            <ul>
+                <li><strong>租户隔离:</strong> 每个租户使用一个独立的 <code>Namespace</code>。</li>
+                <li><strong>资源配额:</strong> 使用 <code>ResourceQuota</code> 限制每个Namespace的CPU、内存、Pod总数。</li>
+                <li><strong>网络隔离:</strong> 启用TKE的 <code>NetworkPolicy</code>，默认禁止Namespace间互访，保障租户数据安全。</li>
+            </ul>
+
+            <h3>2. CI/CD 流程 (GitOps)</h3>
+            <ul>
+                <li><strong>推荐模式:</strong> <strong>GitOps (TKE + ArgoCD)</strong>。</li>
+                <li><strong>流程:</strong>
+                    <ol>
+                        <li>开发者提交代码 (<code>app-code-repo</code>)。</li>
+                        <li><strong>云效 (CI)</strong> 触发：构建镜像 -> 推送镜像至 <strong>TCR</strong>。</li>
+                        <li>云效 (CI) 更新：自动修改配置仓库 (<code>k8s-config-repo</code>) 中的YAML镜像版本。</li>
+                        <li><strong>ArgoCD (CD)</strong> (部署在TKE)：监测到配置仓库变更。</li>
+                        <li>ArgoCD (CD) 自动从TCR拉取新镜像，并滚动更新TKE中的应用。</li>
+                    </ol>
+                </li>
+            </ul>
+        </section>
+
+        <footer>
+            <p>腾讯云解决方案架构师 (AI) - 方案 V10.0 (中文SVG，双图分离版)</p>
+        </footer>
+    </div>
+
+    </body>
+</html>

@@ -1,0 +1,238 @@
+import React, { useEffect, useRef } from "react";
+import mermaid from "mermaid";
+
+/**
+ * Mermaid renderer with graceful fallback.
+ * If parsing fails, the original chart text will be shown for quick debugging.
+ */
+function Mermaid({ id, chart }: { id: string; chart: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    mermaid.initialize({ startOnLoad: false, securityLevel: "loose", theme: "default" });
+    if (!ref.current) return;
+    ref.current.innerHTML = "";
+    const render = async () => {
+      try {
+        const { svg } = await mermaid.render(id, chart);
+        ref.current!.innerHTML = svg;
+      } catch (e) {
+        // Fallback shows raw chart text to help locate syntax issues
+        ref.current!.innerHTML = `<pre class='text-xs whitespace-pre-wrap p-3 bg-slate-50 border rounded'>${chart}</pre>`;
+      }
+    };
+    render();
+  }, [chart, id]);
+  return <div ref={ref} className="w-full overflow-auto" />;
+}
+
+export default function WebPlan() {
+  return (
+    <div className="mx-auto max-w-6xl p-6 print:p-0 text-slate-900">
+      <header className="mb-8 border-b pb-6 flex items-center space-x-3">
+        <span className="text-4xl">📘</span>
+        <div>
+          <h1 className="text-3xl font-bold">AI公司三层交付组织、外包协作与培训体系综合方案（完整版）</h1>
+          <p className="mt-1 text-sm text-slate-600">版本：4.1｜修复 Mermaid/JSX 构建错误｜适用于内部汇报与培训演示</p>
+        </div>
+      </header>
+
+      {/* 背景 */}
+      <section className="mb-10">
+        <h2 className="text-2xl font-semibold mb-3">🎯 一、项目背景与核心挑战</h2>
+        <p className="text-[15px] leading-7 mb-3">公司在快速扩张阶段遇到三大核心挑战：资源约束、产品力不足与售前不清晰，影响整体交付效率与客户满意度。</p>
+        <table className="min-w-full text-sm border border-slate-200">
+          <thead className="bg-slate-50">
+            <tr>
+              <th className="p-3">问题类别</th>
+              <th className="p-3">现象</th>
+              <th className="p-3">影响</th>
+              <th className="p-3">根因分析</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="border-b"><td className="p-3">资源瓶颈</td><td className="p-3">研发与交付人力紧缺</td><td className="p-3">项目延期、质量下降</td><td className="p-3">缺乏弹性产能与标准化流程</td></tr>
+            <tr className="border-b"><td className="p-3">产品力不足</td><td className="p-3">定制比例过高</td><td className="p-3">难以形成规模化复用</td><td className="p-3">缺少产品与交付闭环</td></tr>
+            <tr><td className="p-3">售前流程混乱</td><td className="p-3">需求模糊、方案不落地</td><td className="p-3">范围频繁变更</td><td className="p-3">售前缺少架构师参与与评审</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      {/* 策略 */}
+      <section className="mb-10">
+        <h2 className="text-2xl font-semibold mb-3">🧭 二、总体策略与核心原则</h2>
+        <ul className="list-disc pl-6 text-[15px] leading-7 mb-3">
+          <li><strong>三层组织模式：</strong>将公司划分为核心中枢、内部交付与外包生态三层，实现标准化与弹性并存。</li>
+          <li><strong>外包共生机制：</strong>外部团队经过培训认证后接入项目，形成可复用产能池。</li>
+          <li><strong>学习驱动成长：</strong>构建企业内部LMS体系，形成“培训-实战-复盘-反哺”的闭环。</li>
+          <li><strong>流程一体化：</strong>商机评审、项目启动、交付复盘形成标准化流程与文档。</li>
+        </ul>
+      </section>
+
+      {/* 三层架构 */}
+      <section className="mb-10">
+        <h2 className="text-2xl font-semibold mb-3">🏗️ 三、三层交付组织设计</h2>
+        <p className="text-[15px] leading-7 mb-3">三层组织既保证了中枢决策力与标准化能力，又保持交付灵活性与成本优化。</p>
+        {/* FIX: remove extra JSX closing before; single self-closing component */}
+        <Mermaid id="org-diagram" chart={`graph TB
+A[CEO/CTO]
+A --> B1[核心中枢 Core Center]
+A --> B2[内部交付团队 In-house Delivery]
+A --> B3[外包生态层 Partner Network]
+B1 --> C1[产品经理 PO]
+B1 --> C2[解决方案架构师 SA]
+B1 --> C3[研发 Leader]
+B1 --> C4[PMO]
+B2 --> D1[项目经理 PM]
+B2 --> D2[工程师/实施顾问]
+B2 --> D3[内部测试 QA]
+B3 --> E1[外包 PM]
+B3 --> E2[外包开发团队]
+B3 --> E3[合作伙伴管理]
+classDef core fill:#fde68a,stroke:#b45309,stroke-width:2px;
+classDef delivery fill:#a5f3fc,stroke:#0891b2,stroke-width:2px;
+classDef partner fill:#c7d2fe,stroke:#4f46e5,stroke-width:2px;
+class B1,C1,C2,C3,C4 core
+class B2,D1,D2,D3 delivery
+class B3,E1,E2,E3 partner`} />
+      </section>
+
+      {/* 岗位矩阵 */}
+      <section className="mb-10">
+        <h2 className="text-2xl font-semibold mb-3">👥 四、岗位矩阵与协同机制</h2>
+        <table className="min-w-full text-sm border border-slate-200 mb-3">
+          <thead className="bg-slate-50">
+            <tr>
+              <th className="p-3">角色</th>
+              <th className="p-3">核心职责</th>
+              <th className="p-3">关键产出</th>
+              <th className="p-3">协同对象</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="border-b"><td className="p-3">SA</td><td className="p-3">售前评审、架构方案、需求澄清</td><td className="p-3">方案书、边界文档</td><td className="p-3">销售、PMO、客户</td></tr>
+            <tr className="border-b"><td className="p-3">PM</td><td className="p-3">项目计划、交付监控、外包协调</td><td className="p-3">项目计划书、风险清单</td><td className="p-3">SA、PMO、外包</td></tr>
+            <tr className="border-b"><td className="p-3">PMO</td><td className="p-3">治理体系、培训课程、复盘追踪</td><td className="p-3">SOP、课程体系</td><td className="p-3">PM、SA、PO</td></tr>
+            <tr><td className="p-3">PO</td><td className="p-3">功能抽象、产品路线、知识转化</td><td className="p-3">Backlog、复用模板</td><td className="p-3">PMO、开发团队</td></tr>
+          </tbody>
+        </table>
+        <p className="text-[15px] leading-7">通过矩阵式协作结构，各角色在“售前-交付-复盘”不同阶段形成顺畅的信息与反馈流。</p>
+      </section>
+
+      {/* 教育体系 */}
+      <section className="mb-10">
+        <h2 className="text-2xl font-semibold mb-3">🎓 五、教育培训体系与知识复用</h2>
+        <p className="text-[15px] leading-7 mb-3">教育体系是支撑整个交付生态的“血液循环系统”，通过培训赋能、课程认证、知识沉淀和AI辅助学习，实现团队持续成长。</p>
+        <table className="min-w-full text-sm border border-slate-200">
+          <thead className="bg-slate-50">
+            <tr>
+              <th className="p-3">培训层级</th>
+              <th className="p-3">课程内容</th>
+              <th className="p-3">适用群体</th>
+              <th className="p-3">AI支持</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="border-b"><td className="p-3">基础层</td><td className="p-3">公司产品、流程、工具</td><td className="p-3">全员</td><td className="p-3">自动生成测验与知识图谱</td></tr>
+            <tr className="border-b"><td className="p-3">专业层</td><td className="p-3">架构设计、项目管理、标准化交付</td><td className="p-3">SA、PM、外包负责人</td><td className="p-3">AI辅导案例与语音问答</td></tr>
+            <tr><td className="p-3">进阶层</td><td className="p-3">复盘课程、创新实践、知识转化</td><td className="p-3">骨干与导师</td><td className="p-3">课程自动推荐与复盘提取</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      {/* 外包治理 */}
+      <section className="mb-10">
+        <h2 className="text-2xl font-semibold mb-3">🤝 六、外包协作治理与激励机制</h2>
+        <p className="text-[15px] leading-7 mb-3">外包团队是公司能力延伸的重要部分。通过清晰的治理模型与绩效激励机制，实现“外部团队内部化”的协作体验。</p>
+        <table className="min-w-full text-sm border border-slate-200 mb-3">
+          <thead className="bg-slate-50">
+            <tr>
+              <th className="p-3">外包类型</th>
+              <th className="p-3">职责定位</th>
+              <th className="p-3">绩效指标</th>
+              <th className="p-3">激励策略</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="border-b"><td className="p-3">全功能团队</td><td className="p-3">独立承担项目交付</td><td className="p-3">交付时效与客户满意度</td><td className="p-3">按成果奖励+合作积分制</td></tr>
+            <tr className="border-b"><td className="p-3">功能外包</td><td className="p-3">特定模块开发</td><td className="p-3">代码质量与复用率</td><td className="p-3">模块纳入产品库后分成</td></tr>
+            <tr><td className="p-3">弹性人力</td><td className="p-3">临时补充</td><td className="p-3">任务响应与完成率</td><td className="p-3">按任务绩效结算</td></tr>
+          </tbody>
+        </table>
+        <p className="text-[15px] leading-7">所有外包人员需通过LMS培训认证方能执行关键任务，PMO每季度评估合作等级。</p>
+      </section>
+
+      {/* 流程 */}
+      <section className="mb-10">
+        <h2 className="text-2xl font-semibold mb-3">🪄 七、交付流程与培训集成示意</h2>
+        <Mermaid id="flow-diagram" chart={`sequenceDiagram
+participant Sales as 商务
+participant SA as SA架构师
+participant PMO as PMO
+participant PM as 项目经理
+participant Dev as 外包开发
+participant LMS as 培训系统
+participant Prod as 产品团队
+Sales->>SA: 提交客户需求
+SA->>PMO: 售前可行性评审(R)
+PMO->>PM: 分派项目(A)
+PM->>Dev: 任务分配(R)
+Dev-->>PM: 周报进度(C)
+PM-->>PMO: 状态报告(I)
+PMO-->>LMS: 培训任务+案例更新(C)
+LMS-->>SA: 自动生成新课程(I)
+PMO-->>Prod: 交付反馈与复用功能(R)
+Prod-->>SA: Backlog更新(C)
+Note over SA,PMO: 节点：售前→执行→复盘→培训闭环`} />
+      </section>
+
+      {/* KPI */}
+      <section className="mb-10">
+        <h2 className="text-2xl font-semibold mb-3">📊 八、关键KPI与效果预期</h2>
+        <table className="min-w-full text-sm border border-slate-200 mb-3">
+          <thead className="bg-slate-50">
+            <tr>
+              <th className="p-3">维度</th>
+              <th className="p-3">指标</th>
+              <th className="p-3">目标</th>
+              <th className="p-3">说明</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="border-b"><td className="p-3">效率</td><td className="p-3">平均项目周期缩短</td><td className="p-3">≥25%</td><td className="p-3">流程标准化与复用提升</td></tr>
+            <tr className="border-b"><td className="p-3">质量</td><td className="p-3">外包项目一次验收率</td><td className="p-3">≥85%</td><td className="p-3">统一交付规范与培训</td></tr>
+            <tr className="border-b"><td className="p-3">学习</td><td className="p-3">培训完成率</td><td className="p-3">≥90%</td><td className="p-3">AI辅助学习系统驱动</td></tr>
+            <tr><td className="p-3">产品</td><td className="p-3">功能复用率</td><td className="p-3">≥60%</td><td className="p-3">交付到产品的闭环效率</td></tr>
+          </tbody>
+        </table>
+        <p className="text-[15px] leading-7">通过本方案，企业将从“人海型交付”转型为“学习驱动型规模化交付”，实现组织效率与知识资产双提升。</p>
+      </section>
+
+      {/* --- 自检测试用例（Test Cases） --- */}
+      <section className="mb-10">
+        <h2 className="text-2xl font-semibold mb-3">🧪 九、自检测试用例（Mermaid 渲染）</h2>
+        <p className="text-[14px] mb-2">以下用例用于验证 Mermaid 渲染与 JSX 结构是否正常：</p>
+        <div className="grid md:grid-cols-2 gap-4">
+          {/* Test 1: 最小可用图 */}
+          <div className="rounded border p-3">
+            <h3 className="font-medium mb-2">✅ 测试用例 1：最小 Graph</h3>
+            <Mermaid id="test-graph-min" chart={`graph LR
+A[Start] --> B[OK]
+`} />
+          </div>
+          {/* Test 2: 简单时序图 */}
+          <div className="rounded border p-3">
+            <h3 className="font-medium mb-2">✅ 测试用例 2：简单 Sequence</h3>
+            <Mermaid id="test-seq-min" chart={`sequenceDiagram
+Alice->>Bob: Hello Bob
+Bob-->>Alice: Hi Alice
+`} />
+          </div>
+        </div>
+      </section>
+
+      <footer className="border-t pt-4 text-xs text-slate-500 text-center">
+        <p>© 2025 红熊AI｜内部资料｜v4.1｜支持打印与PDF导出</p>
+      </footer>
+    </div>
+  );
+}

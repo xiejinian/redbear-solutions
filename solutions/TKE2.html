@@ -1,0 +1,594 @@
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import mermaid from "mermaid";
+import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+
+/************************************
+ * 腾讯云 TKE 极致弹性 SaaS 平台 · 单云完整 Web 版（汇报稿）
+ * 受众：CTO / CEO
+ * 覆盖：整体设计、分模块设计、集成与运维、实施与SLO、代码清单（折叠）
+ ************************************/
+
+/******** Mermaid 安全初始化 ********/
+let mermaidInited = false;
+function ensureMermaid() {
+  if (typeof window === "undefined") return;
+  if (!mermaidInited) {
+    mermaid.initialize({ startOnLoad: false, theme: "default" });
+    mermaidInited = true;
+  }
+}
+
+/******** 通用组件：Mermaid 图 ********/
+function Mermaid({ chart, title }: { chart: string; title?: string }) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    ensureMermaid();
+    if (!ref.current) return;
+    const id = "mmd-" + Math.random().toString(36).slice(2);
+    setError(null);
+    try {
+      // 预解析，便于早发现语法问题
+      // @ts-ignore
+      if (typeof mermaid.parse === "function") mermaid.parse(chart + "\n");
+    } catch (e: any) {
+      setError("语法错误: " + (e?.str || e?.message || String(e)));
+      return;
+    }
+    mermaid
+      .render(id, chart)
+      .then(({ svg }) => {
+        if (ref.current) ref.current.innerHTML = svg;
+      })
+      .catch((e: any) => setError("渲染错误: " + (e?.message || String(e))));
+  }, [chart]);
+  return (
+    <div className="w-full">
+      {title ? <div className="text-sm font-semibold text-gray-600 mb-2">{title}</div> : null}
+      <div className="w-full overflow-auto border rounded bg-gray-50 p-2" ref={ref} />
+      {error ? (
+        <pre className="mt-2 text-xs text-red-700 bg-red-50 p-3 rounded whitespace-pre-wrap">{error}</pre>
+      ) : null}
+    </div>
+  );
+}
+
+/******** 折叠代码块 ********/
+function CollapsibleCode({ code, title, defaultOpen=false }: { code: string; title: string; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="border rounded-lg overflow-hidden">
+      <div className="flex items-center justify-between px-3 py-2 bg-gray-100">
+        <div className="text-sm text-gray-700 font-medium">{title}</div>
+        <Button size="sm" variant="outline" onClick={() => setOpen(!open)}>{open ? "收起" : "展开"}</Button>
+      </div>
+      {open ? (
+        <pre className="bg-gray-900 text-gray-100 text-sm p-4 overflow-x-auto leading-relaxed border-t border-gray-200 whitespace-pre">
+          <code>{code}</code>
+        </pre>
+      ) : null}
+    </div>
+  );
+}
+
+/******** 自检测试（覆盖关键图、特殊字符用例） ********/
+function useSelfTests(diagrams: Record<string, string>) {
+  const [results, setResults] = useState<Record<string, string>>({});
+  useEffect(() => {
+    ensureMermaid();
+    const r: Record<string, string> = {};
+    const smoke = "flowchart LR\nA[起]-->B[止]";
+    try { // @ts-ignore
+      if (typeof mermaid.parse === "function") mermaid.parse(smoke);
+      r["smoke"] = "PASS";
+    } catch (e: any) { r["smoke"] = "FAIL: " + (e?.message || String(e)); }
+    Object.entries(diagrams).forEach(([k, v]) => {
+      try { // @ts-ignore
+        if (typeof mermaid.parse === "function") mermaid.parse(v + "\n");
+        r[k] = "PASS";
+      } catch (e: any) { r[k] = "FAIL: " + (e?.message || String(e)); }
+    });
+    // 额外：中英文节点 + 特殊字符替代
+    const extra = `flowchart LR\nCN[中文]-->EN[English]\nEN-->X[Node_X]`;
+    try { // @ts-ignore
+      if (typeof mermaid.parse === "function") mermaid.parse(extra);
+      r["extra"] = "PASS";
+    } catch (e: any) { r["extra"] = "FAIL: " + (e?.message || String(e)); }
+    // 额外：括号替代策略
+    const parenCase = `flowchart LR\nA[MySQL_主库_TencentDB]-->B[只读实例]`;
+    try { // @ts-ignore
+      if (typeof mermaid.parse === "function") mermaid.parse(parenCase);
+      r["parenCase"] = "PASS";
+    } catch (e: any) { r["parenCase"] = "FAIL: " + (e?.message || String(e)); }
+    setResults(r);
+  }, [diagrams]);
+  return results;
+}
+
+/******** Mermaid 图定义（TKE 单云汇报版） ********/
+const archDiagram = `flowchart TB
+subgraph Users[用户层]
+  WEB[Web_API_用户]
+  SIP[SIP_客户端]
+end
+SIP --> FS_EIP
+subgraph TCE[腾讯云_生产_VPC]
+  CLB_TCE[CLB_与_Ingress]
+  subgraph TKE[TKE_主集群]
+    JAVA[Java_应用集群]
+    DIFY[Dify_平台]
+    ASYNC[异步任务_KEDA]
+    FS[FreeSWITCH_节点池]
+    GPUPOOL[GPU_节点池_推理_训练]
+  end
+  DB_TCE[TencentDB_MySQL_Redis]
+  MQ_TCE[CKafka_CMQ]
+  FS_EIP[FS_节点池_EIP_出入口]
+end
+WEB --> CLB_TCE
+CLB_TCE --> JAVA
+CLB_TCE --> DIFY
+JAVA --> MQ_TCE
+DIFY --> MQ_TCE
+JAVA --> DB_TCE
+DIFY --> DB_TCE
+FS --> JAVA
+GPUPOOL --> JAVA`;
+
+const networkDiagram = `flowchart LR
+subgraph TCloud[腾讯云_VPC]
+  CLB_PUB[公网_CLB]
+  FS_NODE[FreeSWITCH_节点_EIP]
+  NAT_TCE[NAT_网关]
+  TCR[TCR_镜像仓库]
+  SUBNET_NODE[节点_子网]
+  SUBNET_POD[Pod_子网_VPC_CNI]
+end
+CLB_PUB --> JAVA_APP[Java_与_Dify]
+FS_NODE --> SIP_ROUTE[第三方_SIP_线路]
+JAVA_APP --> DB_TCE[MySQL_与_Redis]
+NAT_TCE --> Ext[外部_依赖_接口]`;
+
+const dataDiagram = `flowchart LR
+DB_MAIN[MySQL_主库_TencentDB] --> CDC_SYNC[CDC_同步]
+CDC_SYNC --> DB_READ[只读实例]
+REDIS_MAIN[Redis_主实例] --> REDIS_READ[Redis_只读分片]
+CKAFKA_MAIN[CKafka_主题] --> CKAFKA_DQL[DLQ_归档主题]`;
+
+const gpuElasticDiagram = `flowchart TB
+subgraph 控制层
+  HPA[HPA_指标触发]
+  KEDA[KEDA_事件驱动]
+  CA[Cluster_Autoscaler_节点弹性]
+  VPA[VPA_建议_离线]
+end
+subgraph 工作负载
+  DEP_INFER[推理_Deployment]
+  JOB_TRAIN[训练_Job]
+  WORKER[Dify_Worker]
+end
+HPA --> DEP_INFER
+KEDA --> DEP_INFER
+KEDA --> JOB_TRAIN
+KEDA --> WORKER
+DEP_INFER --> CA
+JOB_TRAIN --> CA
+WORKER --> CA`;
+
+const fsFlow = `sequenceDiagram
+participant U as 用户终端
+participant FS as FreeSWITCH_节点
+participant APP as Java_控制层
+participant DB as TencentDB
+participant MQ as CKafka
+U->>FS: 注册_并_发起呼叫
+FS-->>APP: 事件回调_ESL_或_HTTP
+APP->>DB: 写入话单_CDR
+APP->>MQ: 发布通话事件
+FS-->>U: 建立_RTP_媒体通道`;
+
+const cicdDiagram = `flowchart LR
+Dev[开发_提交] --> CI[云效_CI_构建]
+CI --> Scan[镜像_扫描_TCR]
+Scan --> TCR[TCR_制品]
+TCR --> GitOps[ArgoCD_发布]
+GitOps --> TKE[TKE_命名空间_多租户]
+GitOps --> Policy[策略_准入_合规]`;
+
+const secDiagram = `flowchart TB
+CAM[CAM_最小权限] --> IRSA[IRSA_工作负载角色]
+IRSA --> Secret[Secret_KMS_加密]
+IRSA --> ESO[External_Secrets_Operator]
+Policy[OPA_Policy_或_PSA] --> Admission[准入_控制]
+Network[NetworkPolicy_东西向] --> SG[SecurityGroup_南北向]
+Image[镜像_签名_与_扫描] --> Admission`;
+
+/******** 页面组件 ********/
+export default function FinalSaaSPlan() {
+  const testResults = useSelfTests({ archDiagram, networkDiagram, dataDiagram, gpuElasticDiagram, fsFlow, cicdDiagram, secDiagram });
+
+  const navItems = useMemo(() => (
+    [
+      { href: "#exec", label: "执行摘要" },
+      { href: "#arch", label: "总体架构" },
+      { href: "#design", label: "产品选型与集群设计" },
+      { href: "#net", label: "网络与出入口" },
+      { href: "#apps", label: "应用与编排" },
+      { href: "#fs", label: "FreeSWITCH" },
+      { href: "#gpu", label: "算力与弹性" },
+      { href: "#cicd", label: "发布与配置" },
+      { href: "#obs", label: "观测与告警" },
+      { href: "#sec", label: "安全与合规" },
+      { href: "#plan", label: "实施路线图与SLO" },
+      { href: "#tests", label: "自检测试" },
+    ]
+  ), []);
+
+  return (
+    <div className="min-h-screen bg-white text-gray-900">
+      {/* 顶部导航 */}
+      <header className="sticky top-0 bg-white/90 backdrop-blur border-b border-gray-200 z-10">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+          <h1 className="text-2xl font-bold">腾讯云 TKE 极致弹性 SaaS 平台（汇报版 · 单云）</h1>
+          <div className="flex gap-2 flex-wrap">
+            {navItems.map((item) => (
+              <Button asChild key={item.href} variant="outline">
+                <a href={item.href}>{item.label}</a>
+              </Button>
+            ))}
+          </div>
+        </div>
+      </header>
+
+      {/* 主体内容 */}
+      <main className="max-w-7xl mx-auto px-6 py-10 space-y-10">
+        {/* 执行摘要 */}
+        <Section id="exec" title="执行摘要（要点一览）">
+          <ul className="list-disc pl-6 space-y-2">
+            <li>核心诉求：资源隔离、极致弹性、统一发布与观测、SIP 稳定接入。</li>
+            <li>技术主线：TKE_托管集群 + TCR_镜像 + CLB_Ingress + TencentDB + CKafka + TMP + CLS。</li>
+            <li>弹性策略：HPA + KEDA 业务弹性，CA 节点弹性，GPU 节点池分层按需启停。</li>
+            <li>发布策略：云效构建推送 TCR，ArgoCD 驱动 GitOps，按租户命名空间隔离。</li>
+            <li>安全与合规：CAM 最小权限、IRSA、镜像签名与扫描、NetworkPolicy 双层隔离。</li>
+            <li>SLO：SLA≥99.9%，P95≤1s，通话成功率≥99%，RTP 丢包≤1%，GPU 利用率&gt;70%。</li>
+          </ul>
+        </Section>
+
+        {/* 总体架构 */}
+        <Section id="arch" title="总体架构与蓝图">
+          <Mermaid title="总体架构图" chart={archDiagram} />
+          <Mermaid title="CI_CD 与发布链路" chart={cicdDiagram} />
+        </Section>
+
+        {/* 产品选型与集群设计 */}
+        <Section id="design" title="产品选型与 TKE 集群设计">
+          <div className="grid md:grid-cols-2 gap-6">
+            <div>
+              <h3 className="font-semibold">核心产品</h3>
+              <ul className="list-disc pl-6 space-y-1">
+                <li>TKE_托管集群（Master 托管，Worker 自管）</li>
+                <li>TCR_企业版镜像仓库（与云效对接）</li>
+                <li>TencentDB_MySQL 与 Redis（数据托管）</li>
+                <li>CKafka_消息与 KEDA_事件弹性</li>
+                <li>CLB + Ingress_Controller（TLS_终止 与 灰度）</li>
+                <li>TMP_托管 Prometheus 与 CLS_日志服务</li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="font-semibold">节点池与调度</h3>
+              <ul className="list-disc pl-6 space-y-1">
+                <li>节点池_Java：通用计算，污点_空；</li>
+                <li>节点池_Dify：IO_优化，允许突发；</li>
+                <li>节点池_FS：绑定_EIP，允许 hostNetwork，污点 edge=true；</li>
+                <li>节点池_GPU：A10/A100_按需，nvidia.com/gpu 请求；</li>
+                <li>节点池_中间件代理：如 Ingress_Controller 与 边车。</li>
+              </ul>
+            </div>
+          </div>
+        </Section>
+
+        {/* 网络与出入口 */}
+        <Section id="net" title="网络拓扑与出入口策略">
+          <Mermaid title="网络拓扑图" chart={networkDiagram} />
+          <ul className="list-disc pl-6 space-y-1">
+            <li>VPC 与子网：节点子网 与 Pod_子网_独立，避免 IP 枯竭；</li>
+            <li>服务暴露：公网_CLB + Ingress，按租户_域名与 TLS 证书管理；</li>
+            <li>南北向安全：CLB 安全组 与 WAF_可选；</li>
+            <li>东西向安全：NetworkPolicy_白名单；</li>
+            <li>外联稳定：NAT_网关_固定出口，SIP 走 FS_EIP 节点池。</li>
+          </ul>
+        </Section>
+
+        {/* 应用与编排 */}
+        <Section id="apps" title="应用与编排（Java / Dify / 异步任务）">
+          <Tabs defaultValue="java">
+            <TabsList>
+              <TabsTrigger value="java">Java_应用</TabsTrigger>
+              <TabsTrigger value="dify">Dify_平台</TabsTrigger>
+              <TabsTrigger value="async">异步任务_KEDA</TabsTrigger>
+            </TabsList>
+            <TabsContent value="java" className="space-y-4">
+              <p>无状态_Deployment + HPA，按 CPU/内存/自定义指标扩缩；探针与资源配额确保稳定性。</p>
+              <CollapsibleCode title="Deployment + HPA" code={`apiVersion: apps/v1
+kind: Deployment
+metadata: { name: svc-java, labels: { app: svc-java } }
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: svc-java } }
+  template:
+    metadata: { labels: { app: svc-java } }
+    spec:
+      containers:
+      - name: app
+        image: <tcr>/svc-java:<gitsha>
+        ports: [{ containerPort: 8080 }]
+        resources:
+          requests: { cpu: 500m, memory: 1Gi }
+          limits:   { cpu: 1,    memory: 2Gi }
+        readinessProbe:
+          httpGet: { path: /actuator/health, port: 8080 }
+          initialDelaySeconds: 10
+        livenessProbe:
+          httpGet: { path: /actuator/health, port: 8080 }
+          initialDelaySeconds: 30
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata: { name: svc-java }
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: svc-java }
+  minReplicas: 2
+  maxReplicas: 50
+  metrics:
+  - type: Resource
+    resource: { name: cpu, target: { type: Utilization, averageUtilization: 60 } }`} />
+            </TabsContent>
+            <TabsContent value="dify" className="space-y-4">
+              <p>组件拆分：Web/API、Worker 队列消费、向量检索；KEDA 依据 Kafka_Lag 弹性。</p>
+              <CollapsibleCode title="Dify Worker + KEDA" code={`apiVersion: apps/v1
+kind: Deployment
+metadata: { name: dify-worker, labels: { app: dify-worker } }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: dify-worker } }
+  template:
+    metadata: { labels: { app: dify-worker } }
+    spec:
+      containers:
+      - name: worker
+        image: <tcr>/dify-worker:<gitsha>
+        envFrom: [{ secretRef: { name: dify-secret } }]
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata: { name: dify-worker-scaler }
+spec:
+  scaleTargetRef: { name: dify-worker }
+  minReplicaCount: 0
+  maxReplicaCount: 100
+  triggers:
+  - type: kafka
+    metadata:
+      bootstrapServers: <ckafka-bootstrap>:9092
+      consumerGroup: dify-worker
+      topic: dify-tasks
+      lagThreshold: "200"`} />
+            </TabsContent>
+            <TabsContent value="async" className="space-y-4">
+              <p>周期任务使用 CronJob，ETL 与对账任务具备失败重试策略。</p>
+              <CollapsibleCode title="CronJob_ETL" code={`apiVersion: batch/v1
+kind: CronJob
+metadata: { name: etl-daily }
+spec:
+  schedule: "5 2 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: etl
+            image: <tcr>/etl:<gitsha>
+            args: ["--run", "daily"]`} />
+            </TabsContent>
+          </Tabs>
+        </Section>
+
+        {/* FreeSWITCH */}
+        <Section id="fs" title="FreeSWITCH 专区（DaemonSet + hostNetwork + EIP）">
+          <Mermaid title="呼叫时序图" chart={fsFlow} />
+          <p>专用节点池绑定 EIP，使用 hostNetwork 与固定端口，ESL 控制面与业务面隔离。</p>
+          <CollapsibleCode title="DaemonSet_清单" code={`apiVersion: apps/v1
+kind: DaemonSet
+metadata: { name: freeswitch, namespace: sip, labels: { app: freeswitch } }
+spec:
+  selector: { matchLabels: { app: freeswitch } }
+  template:
+    metadata: { labels: { app: freeswitch } }
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      nodeSelector: { workload: "fs" }
+      tolerations:
+      - key: "edge"
+        operator: "Equal"
+        value: "true"
+        effect: "NoSchedule"
+      volumes:
+      - name: fs-config
+        configMap: { name: fs-config }
+      - name: fs-record
+        persistentVolumeClaim: { claimName: fs-record-pvc }
+      containers:
+      - name: freeswitch
+        image: <tcr>.tencentyun.com/voice/freeswitch:<gitsha>
+        securityContext: { capabilities: { add: ["NET_BIND_SERVICE", "SYS_NICE"] } }
+        ports:
+        - { containerPort: 5060, protocol: UDP }
+        - { containerPort: 5061, protocol: TCP }
+        - { containerPort: 8021, protocol: TCP }
+        volumeMounts:
+        - { name: fs-config, mountPath: /etc/freeswitch }
+        - { name: fs-record, mountPath: /var/lib/freeswitch/recordings }`} />
+        </Section>
+
+        {/* 算力与弹性 */}
+        <Section id="gpu" title="算力服务器与弹性编排（推理 + 训练）">
+          <Mermaid title="GPU 弹性逻辑图" chart={gpuElasticDiagram} />
+          <Tabs defaultValue="infer">
+            <TabsList>
+              <TabsTrigger value="infer">推理_Deployment</TabsTrigger>
+              <TabsTrigger value="train">训练_Job</TabsTrigger>
+            </TabsList>
+            <TabsContent value="infer">
+              <CollapsibleCode title="推理_Deployment" code={`apiVersion: apps/v1
+kind: Deployment
+metadata: { name: ai-infer, namespace: ai }
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: ai-infer } }
+  template:
+    metadata: { labels: { app: ai-infer } }
+    spec:
+      nodeSelector: { workload: "gpu" }
+      containers:
+      - name: infer
+        image: <tcr>/ai/infer:<gitsha>
+        resources:
+          limits:
+            nvidia.com/gpu: 1
+            cpu: "2000m"
+            memory: "4Gi"`} />
+            </TabsContent>
+            <TabsContent value="train">
+              <CollapsibleCode title="训练_Job" code={`apiVersion: batch/v1
+kind: Job
+metadata: { name: train-job, namespace: ai }
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      nodeSelector: { workload: "gpu" }
+      containers:
+      - name: train
+        image: <tcr>/ai/train:<gitsha>
+        resources:
+          limits:
+            nvidia.com/gpu: 1
+            cpu: "4000m"
+            memory: "16Gi"`} />
+            </TabsContent>
+          </Tabs>
+        </Section>
+
+        {/* 发布与配置 */}
+        <Section id="cicd" title="发布与配置（云效 + TCR + ArgoCD + Ingress）">
+          <Mermaid title="CI_CD_发布链路" chart={cicdDiagram} />
+          <CollapsibleCode title="Ingress_示例" code={`apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: web-gw
+  annotations:
+    kubernetes.io/ingress.class: qcloud
+    ingress.cloud.tencent.com/ssl-mode: UNIDIRECTIONAL
+spec:
+  tls:
+  - hosts: ["api.example.com"]
+    secretName: tls-web
+  rules:
+  - host: api.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: svc-java
+            port: { number: 8080 }`} />
+          <CollapsibleCode title="Cluster_Autoscaler_说明" code={`# 建议通过 Helm 安装 CA 并配置最小_最大节点
+# values.yaml 关键片段
+cloudProvider: tencentcloud
+autoscalingGroups:
+  - name: nodepool-java
+    minSize: 2
+    maxSize: 50
+  - name: nodepool-gpu
+    minSize: 0
+    maxSize: 20`} />
+        </Section>
+
+        {/* 可观测与告警 */}
+        <Section id="obs" title="统一观测（TMP + CLS + Alarms）">
+          <Mermaid title="数据_与_消息_同步" chart={dataDiagram} />
+          <ul className="list-disc pl-6 space-y-1">
+            <li>指标：TMP 抓取 kube-state-metrics、应用自定义指标、DCGM_GPU 指标。</li>
+            <li>日志：CLS 统一收集 _ Ingress_访问、应用 stdout、FS 日志。</li>
+            <li>告警：HTTP_5xx、P95_延迟、Kafka_Lag、FS_并发与丢包、GPU_温度_利用率。</li>
+          </ul>
+        </Section>
+
+        {/* 安全与合规 */}
+        <Section id="sec" title="安全与合规（多层防护）">
+          <Mermaid title="安全_控制面_示意" chart={secDiagram} />
+          <ul className="list-disc pl-6 space-y-1">
+            <li>身份与权限：CAM_最小权限，IRSA_粒度授权。</li>
+            <li>供应链安全：TCR_镜像扫描，镜像签名，Admission_拒绝不合规镜像。</li>
+            <li>网络与数据：SecurityGroup + NetworkPolicy，Secret_KMS_加密，ESO_拉取密钥。</li>
+            <li>合规：审计日志、变更留痕、双人复核流程。</li>
+          </ul>
+        </Section>
+
+        {/* 实施路线图与 SLO */}
+        <Section id="plan" title="8 周实施路线图与 SLO 验收标准">
+          <div className="bg-gray-50 rounded-lg border p-6 leading-relaxed">
+            <h3 className="font-semibold text-gray-800 mb-2">阶段目标</h3>
+            <ol className="list-decimal list-inside space-y-1">
+              <li>第 1 周：基座 (VPC / TKE / 节点池 / Ingress / KEDA / Argo / TMP / CLS)</li>
+              <li>第 2 周：打通 CI/CD 与 TCR 镜像链路</li>
+              <li>第 3 周：迁移 Java 应用，验证 MySQL/Redis</li>
+              <li>第 4 周：上线 Dify（API_Web_Worker），KEDA_事件弹性</li>
+              <li>第 5 周：部署 FreeSWITCH（EIP_节点池），完成 SIP 拨测矩阵</li>
+              <li>第 6 周：启用 GPU 节点池与 DCGM，推理_训练联调</li>
+              <li>第 7 周：CDC 数据同步与容灾演练</li>
+              <li>第 8 周：SLO 验收、回滚演练、成本与容量基线</li>
+            </ol>
+            <h3 className="font-semibold mt-4 mb-2">SLO 验收标准</h3>
+            <ul className="list-disc list-inside space-y-1">
+              <li>SLA ≥ 99.9%</li>
+              <li>P95 响应延迟 ≤ 1s</li>
+              <li>通话成功率 ≥ 99%</li>
+              <li>RTP 丢包率 ≤ 1%</li>
+              <li>GPU 利用率 &gt; 70%，空载 &lt; 20%</li>
+            </ul>
+          </div>
+        </Section>
+
+        {/* 自检结果（测试用例） */}
+        <Section id="tests" title="内置自检（Mermaid 解析）">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {Object.entries(testResults).map(([k, v]) => (
+              <div key={k} className="rounded border p-3 text-sm flex items-center justify-between">
+                <span className="font-mono">{k}</span>
+                <span className={v.startsWith("PASS") ? "text-green-600" : "text-red-600"}>{v}</span>
+              </div>
+            ))}
+          </div>
+        </Section>
+      </main>
+    </div>
+  );
+}
+
+/******** 分节组件 ********/
+function Section({ title, children, id }: { title: string; children: React.ReactNode; id?: string }) {
+  return (
+    <section id={id} className="space-y-4">
+      <h2 className="text-xl font-bold border-l-4 border-blue-500 pl-3 text-gray-800">{title}</h2>
+      <Card className="shadow-sm border border-gray-200">
+        <CardContent className="prose max-w-none p-6 space-y-4">{children}</CardContent>
+      </Card>
+    </section>
+  );
+}
